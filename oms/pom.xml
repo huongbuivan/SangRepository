@@ -11,6 +11,7 @@
 	<modules>
 		<module>product</module>
 		<module>customer</module>
+		<module>JavaStudy</module>
 	</modules>
 
 </project>
