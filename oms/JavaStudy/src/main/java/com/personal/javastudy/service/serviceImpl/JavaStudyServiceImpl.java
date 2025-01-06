@@ -6,34 +6,41 @@ import com.personal.javastudy.dtos.function_interface.StringFilterRequest;
 import com.personal.javastudy.dtos.memory_types.ImmutablePerson;
 import com.personal.javastudy.service.JavaStudyService;
 import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import javax.crypto.Cipher;
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.*;
 
 @Service
+@RequiredArgsConstructor
 public class JavaStudyServiceImpl implements JavaStudyService {
 
-    private final Map<String, Calculator> operations = new HashMap<>();
-    private final Map<String, StringCondition> filterStrings = new HashMap<>();
-    private List<byte[]> memoryConsumers = new ArrayList<>();
-    private static final Map<Integer, String> LEAK_MAP = new HashMap<>();
+    private final Map<String, Calculator> operations;
+    private final Map<String, StringCondition> filterStrings;
+    private final List<byte[]> memoryConsumers;
+    private final Map<Integer, String> leakMap;
+    private final DataFetcher dataFetcher;
+    private final ExecutorService executorService;
 
-    public JavaStudyServiceImpl() {
-        operations.put("add", (a, b) -> a + b);
-        operations.put("subtract", (a, b) -> a - b);
-        operations.put("multiply", (a, b) -> a * b);
-        operations.put("divide", (a, b) -> {
-            if (b == 0) throw new IllegalArgumentException("Division by zero is not allowed");
-            return a / b;
-        });
+    private final String hashingAlgorithm;
+    private final int saltLength;
+    private final int hashIterations;
 
-        filterStrings.put("startWith", (str, filterValue) -> str.startsWith(filterValue));
-        filterStrings.put("contains", (str, filterValue) -> str.contains(filterValue));
-    }
+    private final String encryptionAlgorithm;
+    private final int keySize;
+
 
     @Override
     public OperationResponse performOperation(@NonNull OperationRequest request) {
@@ -75,13 +82,13 @@ public class JavaStudyServiceImpl implements JavaStudyService {
     @Override
     public void createMemoryLeak(int iterations) {
         for (int i = 0; i < iterations; i++) {
-            LEAK_MAP.put(i, "leaking data " + System.nanoTime());
+            leakMap.put(i, "leaking data " + System.nanoTime());
         }
     }
 
     @Override
     public void clearMemoryLeak() {
-        LEAK_MAP.clear();
+        leakMap.clear();
     }
 
     @Override
@@ -113,5 +120,134 @@ public class JavaStudyServiceImpl implements JavaStudyService {
     @Override
     public ImmutablePerson createImmutablePerson(String name, int age) {
         return ImmutablePerson.builder().name(name).age(age).build();
+    }
+
+    @Override
+    public CompletableFuture<String> fetchCombinedData() {
+        return dataFetcher.fetchDataFromSource1()
+                .thenCombine(dataFetcher.fetchDataFromSource2(), (data1, data2) -> data1 + " | " + data2);
+    }
+
+    @Override
+    public int sumUsingForkJoin(int[] array) {
+        ForkJoinPool pool = new ForkJoinPool();
+        return pool.invoke(new SumTask(array, 0, array.length));
+    }
+
+    @Override
+    public int sumUsingTraditionalThreads(int[] array) throws InterruptedException {
+        int numThreads = 2;
+        Thread[] threads = new Thread[numThreads];
+        int[] partialSums = new int[numThreads];
+        int chunkSize = (int) Math.ceil(array.length / (double) numThreads);
+
+        for (int i = 0; i < numThreads; i++) {
+            final int index = i;
+            threads[i] = new Thread(() -> {
+                int start = index * chunkSize;
+                int end = Math.min((index + 1) * chunkSize, array.length);
+                for (int j = start; j < end; j++) {
+                    partialSums[index] += array[j];
+                }
+            });
+            threads[i].start();
+        }
+
+        for (Thread thread : threads) {
+            thread.join();
+        }
+
+        int totalSum = 0;
+        for (int partialSum : partialSums) {
+            totalSum += partialSum;
+        }
+
+        return totalSum;
+    }
+
+    public List<String> scrapeWebsites(String[] urls) throws InterruptedException, ExecutionException {
+        List<Future<String>> futures = new ArrayList<>();
+
+        // Submit each URL as a separate task
+        for (String url : urls) {
+            futures.add(executorService.submit(new WebScrapingTask(url)));
+        }
+
+        // Collect results
+        List<String> results = new ArrayList<>();
+        for (Future<String> future : futures) {
+            results.add(future.get()); // Blocking call to get each result
+        }
+
+        return results;
+    }
+
+    @Override
+    public String hashPassword(String password) {
+        try {
+            // Generate a secure random salt
+            SecureRandom random = new SecureRandom();
+            byte[] saltBytes = new byte[saltLength];
+            random.nextBytes(saltBytes);
+            String salt = Base64.getEncoder().encodeToString(saltBytes);
+
+            // Hash the password using HASHING_ALGORITHM with salt and iterations
+            MessageDigest messageDigest = MessageDigest.getInstance(hashingAlgorithm);
+            String combined = salt + password;
+
+            byte[] hashedBytes = combined.getBytes();
+            // Perform multiple iterations (key stretching)
+            for (int i = 0; i < hashIterations; i++) {
+                hashedBytes = messageDigest.digest(hashedBytes);
+            }
+
+            return Base64.getEncoder().encodeToString(hashedBytes);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("Error while hashing password: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public String generateSecretKey() {
+        try {
+            KeyGenerator keyGenerator = KeyGenerator.getInstance(encryptionAlgorithm);
+            keyGenerator.init(keySize);
+            SecretKey secretKey = keyGenerator.generateKey();
+            return Base64.getEncoder().encodeToString(secretKey.getEncoded());
+        } catch (Exception e) {
+            throw new RuntimeException("Error generating secret key", e);
+        }
+    }
+
+    @Override
+    public String encrypt(String plainText, String secretKey) {
+        try {
+            byte[] decodedKey = Base64.getDecoder().decode(secretKey);
+            SecretKeySpec keySpec = new SecretKeySpec(decodedKey, encryptionAlgorithm);
+
+            Cipher cipher = Cipher.getInstance(encryptionAlgorithm);
+            cipher.init(Cipher.ENCRYPT_MODE, keySpec);
+
+            byte[] encryptedBytes = cipher.doFinal(plainText.getBytes());
+            return Base64.getEncoder().encodeToString(encryptedBytes);
+        } catch (Exception e) {
+            throw new RuntimeException("Error encrypting text", e);
+        }
+    }
+
+    @Override
+    public String decrypt(String encryptedText, String secretKey) {
+        try {
+            byte[] decodedKey = Base64.getDecoder().decode(secretKey);
+            SecretKeySpec keySpec = new SecretKeySpec(decodedKey, encryptionAlgorithm);
+
+            Cipher cipher = Cipher.getInstance(encryptionAlgorithm);
+            cipher.init(Cipher.DECRYPT_MODE, keySpec);
+
+            byte[] decryptedBytes = cipher.doFinal(Base64.getDecoder().decode(encryptedText));
+            return new String(decryptedBytes);
+        } catch (Exception e) {
+            throw new RuntimeException("Error decrypting text", e);
+        }
     }
 }
