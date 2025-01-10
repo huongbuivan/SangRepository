@@ -10,7 +10,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 @RestController
-@RequestMapping("api/Concurrent-programming/")
+@RequestMapping("api/concurrent-programming/")
 @RequiredArgsConstructor
 public class ConcurrentProgrammingController {
 

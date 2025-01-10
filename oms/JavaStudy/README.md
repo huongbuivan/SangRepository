@@ -151,3 +151,33 @@ Combined with techniques like salting (adding random data before hashing), it be
 5. Compliance:
 
 Many security standards and regulations (e.g., GDPR, PCI DSS) require the secure handling of sensitive data, including hashing passwords.
+
+# @Transactional Support for DB Transactions
+
+The @Transactional annotation in Spring and Spring Boot provides support for managing database transactions. It simplifies transaction management by allowing you to define transactional boundaries declaratively.
+
+## How It Works
+
+1. Automatic Transaction Management: When a method annotated with @Transactional is called, Spring creates a new transaction or uses an existing one if applicable.
+
+2. Commit or Rollback:
+
+- If the method executes successfully, the transaction is committed.
+
+- If a runtime exception is thrown, the transaction is rolled back automatically.
+
+## Common Propagation Levels:
+
+REQUIRED: Default, joins the existing transaction or creates a new one.
+
+REQUIRES_NEW: Suspends the current transaction and starts a new one.
+
+SUPPORTS: Executes within a transaction if one exists.
+
+## Common Isolation Levels:
+
+READ_COMMITTED: Prevents dirty reads.
+
+REPEATABLE_READ: Prevents dirty and non-repeatable reads.
+
+SERIALIZABLE: Most restrictive; prevents phantom reads.
