@@ -4,15 +4,23 @@ import com.personal.javastudy.dtos.function_interface.OperationRequest;
 import com.personal.javastudy.dtos.function_interface.OperationResponse;
 import com.personal.javastudy.dtos.function_interface.StringFilterRequest;
 import com.personal.javastudy.dtos.memory_types.ImmutablePerson;
+import com.personal.javastudy.dtos.transactions.TaskRequest;
+import com.personal.javastudy.models.transactions.Account;
+import com.personal.javastudy.models.transactions.Task;
+import com.personal.javastudy.repositories.AccountRepository;
+import com.personal.javastudy.repositories.TaskRepository;
 import com.personal.javastudy.service.JavaStudyService;
 import com.personal.javastudy.service.serviceImpl.concurrent_programming.DataFetcher;
 import com.personal.javastudy.service.serviceImpl.concurrent_programming.SumTask;
 import com.personal.javastudy.service.serviceImpl.concurrent_programming.WebScrapingTask;
 import com.personal.javastudy.service.serviceImpl.function_interface.Calculator;
 import com.personal.javastudy.service.serviceImpl.function_interface.StringCondition;
+import com.personal.javastudy.service.serviceImpl.transaction.TaskLogger;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
@@ -45,6 +53,12 @@ public class JavaStudyServiceImpl implements JavaStudyService {
 
     private final String encryptionAlgorithm;
     private final int keySize;
+
+    private final AccountRepository accountRepository;
+    private final TaskRepository taskRepository;
+    private final TaskLogger taskLogger;
+
+
 
     @Override
     public OperationResponse performOperation(@NonNull OperationRequest request) {
@@ -252,6 +266,89 @@ public class JavaStudyServiceImpl implements JavaStudyService {
             return new String(decryptedBytes);
         } catch (Exception e) {
             throw new RuntimeException("Error decrypting text", e);
+        }
+    }
+
+    @Override
+    public List<Account> getAllAccounts() {
+        return accountRepository.findAll();
+    }
+
+    @Transactional
+    @Override
+    public Account createAccount(String accountNumber, Double initialBalance) {
+        // Validate input
+        if (initialBalance < 0) {
+            throw new IllegalArgumentException("Initial balance cannot be negative.");
+        }
+
+        // Check if account already exists
+        if (accountRepository.findByAccountNumber(accountNumber).isPresent()) {
+            throw new IllegalArgumentException("Account with number " + accountNumber + " already exists.");
+        }
+
+        // Create and save the account
+        Account account = new Account(null , accountNumber, initialBalance);
+        return accountRepository.save(account);
+    }
+
+    @Transactional
+    @Override
+    public void transferMoney(String senderAccountNumber, String receiverAccountNumber, Double amount) {
+        // Validate input
+        if (amount <= 0) {
+            throw new IllegalArgumentException("Transfer amount must be greater than zero.");
+        }
+
+        // Find sender's account
+        Account sender = accountRepository.findByAccountNumber(senderAccountNumber)
+                .orElseThrow(() -> new IllegalArgumentException("Sender account not found: " + senderAccountNumber));
+
+        // Find receiver's account
+        Account receiver = accountRepository.findByAccountNumber(receiverAccountNumber)
+                .orElseThrow(() -> new IllegalArgumentException("Receiver account not found: " + receiverAccountNumber));
+
+        // Check if sender has sufficient balance
+        if (sender.getBalance() < amount) {
+            throw new RuntimeException("Insufficient balance in sender's account.");
+        }
+
+        // Deduct money from sender's account
+        sender.setBalance(sender.getBalance() - amount);
+        accountRepository.save(sender);
+
+        // Simulate an error
+        // if amount == 5000$ throw new RuntimeException("Simulated error!");
+        if (5000 == amount) {
+            throw new RuntimeException("Simulated error occurred. Rolling back...");
+        }
+
+        // Add money to receiver's account
+        receiver.setBalance(receiver.getBalance() + amount);
+        accountRepository.save(receiver);
+    }
+
+    @Override
+    public List<Task> getAllTasks() {
+        return taskRepository.findAll();
+    }
+
+    @Transactional(propagation = Propagation.REQUIRED)
+    @Override
+    public void createTask(TaskRequest request) {
+        // Save the main task
+        Task task = new Task();
+        task.setName(request.getName());
+        task.setDescription(request.getDescription());
+        task.setStatus("CREATED");
+        taskRepository.save(task);
+
+        // Log the creation action in the same table (separate transaction)
+        taskLogger.logTaskAction(task.getId(), "Task created");
+
+        // Simulate an exception to test rollback behavior
+        if ("fail".equalsIgnoreCase(request.getName())) {
+            throw new RuntimeException("Simulated exception during task creation!");
         }
     }
 }
