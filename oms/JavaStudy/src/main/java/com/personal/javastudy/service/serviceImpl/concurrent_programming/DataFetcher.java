@@ -1,4 +1,4 @@
-package com.personal.javastudy.service.serviceImpl;
+package com.personal.javastudy.service.serviceImpl.concurrent_programming;
 
 import org.springframework.stereotype.Component;
 

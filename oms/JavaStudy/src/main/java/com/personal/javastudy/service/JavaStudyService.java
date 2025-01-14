@@ -4,11 +4,6 @@ import com.personal.javastudy.dtos.function_interface.OperationRequest;
 import com.personal.javastudy.dtos.function_interface.OperationResponse;
 import com.personal.javastudy.dtos.function_interface.StringFilterRequest;
 import com.personal.javastudy.dtos.memory_types.ImmutablePerson;
-import com.personal.javastudy.dtos.transactions.TaskRequest;
-import com.personal.javastudy.models.transactions.Account;
-import com.personal.javastudy.models.transactions.Task;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -51,17 +46,4 @@ public interface JavaStudyService {
     String encrypt(String plainText, String secretKey);
 
     String decrypt(String encryptedText, String secretKey);
-
-    List<Account> getAllAccounts();
-
-    @Transactional
-    Account createAccount(String accountNumber, Double initialBalance);
-
-    @Transactional
-    void transferMoney(String senderAccountNumber, String receiverAccountNumber, Double amount);
-
-    List<Task> getAllTasks();
-
-    @Transactional(propagation = Propagation.REQUIRED)
-    void createTask(TaskRequest request);
 }

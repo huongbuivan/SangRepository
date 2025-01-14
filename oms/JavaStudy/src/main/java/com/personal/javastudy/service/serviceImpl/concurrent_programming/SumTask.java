@@ -1,11 +1,11 @@
-package com.personal.javastudy.service.serviceImpl;
+package com.personal.javastudy.service.serviceImpl.concurrent_programming;
 
 import lombok.AllArgsConstructor;
 
 import java.util.concurrent.RecursiveTask;
 
 @AllArgsConstructor
-class SumTask extends RecursiveTask<Integer> {
+public class SumTask extends RecursiveTask<Integer> {
     private final int[] array;
     private final int start;
     private final int end;

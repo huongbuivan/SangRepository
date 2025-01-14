@@ -1,4 +1,4 @@
-package com.personal.javastudy.service.serviceImpl;
+package com.personal.javastudy.service.serviceImpl.function_interface;
 
 @FunctionalInterface
 public interface StringCondition {

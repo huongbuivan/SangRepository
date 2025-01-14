@@ -4,6 +4,8 @@ import com.personal.javastudy.dtos.function_interface.OperationRequest;
 import com.personal.javastudy.dtos.function_interface.OperationResponse;
 import com.personal.javastudy.dtos.function_interface.StringFilterRequest;
 import com.personal.javastudy.dtos.memory_types.ImmutablePerson;
+import com.personal.javastudy.service.serviceImpl.concurrent_programming.DataFetcher;
+import com.personal.javastudy.service.serviceImpl.concurrent_programming.WebScrapingTask;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
